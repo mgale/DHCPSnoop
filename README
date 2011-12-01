@@ -1,0 +1,15 @@
+MemQueue
+=======
+MemQueue is an open source version of a scalable, non-blocking simple message
+queue. It is designed to provide a simple message queue for transient data that
+is time sensitive.
+
+MemQueue is licensed under the Apache Licence, Version 2.0
+(http://www.apache.org/licenses/LICENSE-2.0.html).
+
+Installation
+============
+To install:
+
+    python setup.py build
+    sudo python setup.py install
