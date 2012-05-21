@@ -1,11 +1,8 @@
-MemQueue
+DHCPSnoop
 =======
-MemQueue is an open source version of a scalable, non-blocking simple message
-queue. It is designed to provide a simple message queue for transient data that
-is time sensitive.
+DHCPSnoop will listen on the network for DHCP responses and verify that the parameters returned are correct.
 
-MemQueue is licensed under the Apache Licence, Version 2.0
-(http://www.apache.org/licenses/LICENSE-2.0.html).
+This helps out in a dev environment where developers and QA staff will accidently turn on a DHCP server :)
 
 Installation
 ============
