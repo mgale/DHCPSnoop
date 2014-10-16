@@ -1,0 +1,16 @@
+This document explains how to set up your system for running the
+app. 
+
+Setup:
+======
+
+sudo apt-get install python-dev python-virtualenv
+
+virtualenv --distribute env
+source ./env/bin/activate
+pip install -r requirements.txt
+
+Running:
+=======
+sudo `which python` dhcpsnoop/dhcpsnoop.py -vd -c dhcpsnoop/dhcpsnoop.conf
+

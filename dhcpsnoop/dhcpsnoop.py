@@ -21,12 +21,13 @@
 
 import os
 import sys
-import syslog
 import errno
 import ConfigParser
 import getopt
 from scapy.all import *
 import threading
+
+SCRIPT_NAME = os.path.basename(__file__)
 
 version = "1.0git"
 version_info = (1,0,0)
@@ -146,6 +147,29 @@ def parse_cmd_line(argv):
 
     return cmd_line_option_list
 
+def log_setup(verbose, debug):
+    log = logging.getLogger("%s" % (SCRIPT_NAME))
+    log_level = logging.INFO
+    log_level_console = logging.WARNING
+
+    if verbose == True:
+        log_level_console = logging.INFO
+
+    if debug == True:
+        log_level_console = logging.DEBUG
+        log_level = logging.DEBUG
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    console_log = logging.StreamHandler()
+    console_log.setLevel(log_level_console)
+    console_log.setFormatter(formatter)
+
+    log.setLevel(log_level)
+    log.addHandler(console_log)
+
+    return log
+
 def config_load(options):
     """
     Config_load method used to load the configuration
@@ -169,7 +193,7 @@ def make_dhcp_request(pktface):
     """
     Send a DHCP request on the network
 
-    @param nwcard: The network interface to use, "eth0".
+    @pktface: The network interface to use, "eth0".
     """
 
     conf.checkIPaddr = False
@@ -204,17 +228,21 @@ def main():
 
     options = parse_cmd_line(sys.argv)
     MCONFIG = config_load(options=options)
+    LOG = log_setup(options['VERBOSE'], options['DEBUG'])
 
-    syslog.openlog("DHCPSnoop",0, facility=syslog.LOG_USER)
-    syslog.syslog("DHCPSnoop initiated ...")
-
+    LOG.info("DHCPSnoop started")
+    
+    LOG.debug("Starting capture thread")
     pktcap = CaptureThread(dhcp_callback, MCONFIG.get("PKTOPTS","pkttime"),
         MCONFIG.get("PKTOPTS","pktcount"))
     pktcap.start()
 
+    LOG.debug("Making dhcp requests")
     make_dhcp_request(MCONFIG.get("PKTOPTS","pktface"))
 
     pktcap.join()
+
+
 
     for rply in DHCP_REPLIES:
         for i in range(1,10):
