@@ -12,5 +12,7 @@ pip install -r requirements.txt
 
 Running:
 =======
+
+Since promicous mode usually requires root privileges and I like to work in a Python virtual env:
 sudo `which python` dhcpsnoop/dhcpsnoop.py -vd -c dhcpsnoop/dhcpsnoop.conf
 

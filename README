@@ -1,6 +1,9 @@
 DHCPSnoop
 =======
-DHCPSnoop will listen on the network for DHCP responses and verify that the parameters returned are correct.
+
+DHCPSnoop will listen on a network interface for DHCP replies from it's own DHCP requests and any other requests it can see during the runtime.
+
+It will then verify the DHCP response parameters that are returned against the settings in it's configuration file.
 
 This helps out in a dev environment where developers and QA staff will accidently turn on a DHCP server :)
 

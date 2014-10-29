@@ -26,6 +26,8 @@ import ConfigParser
 import getopt
 from scapy.all import *
 import threading
+import logging
+import time
 
 SCRIPT_NAME = os.path.basename(__file__)
 
@@ -36,18 +38,21 @@ version_info = (1,0,0)
 MCONFIG = None
 LOG = None
 DHCP_REPLIES = []
+# Should maintain a list of objects, that have information on returned results
+# all returned packets should be turned into a DHCPResponse object
+# each object should contain a good / bad flag
+# sha hash to remove duplicate objects
 
 class CaptureThread(threading.Thread):
     """
     Thread to sniff the network packets, sniff is a
-    blocking call
+    blocking call.
     """
     def __init__(self, data_callback, pktcount=5, pkttimeout=5):
         threading.Thread.__init__(self)
         self.pktcount = int(pktcount)
         self.pkttimeout = int(pkttimeout)
         self.data_callback = data_callback
-        self.data = None
 
     def run(self):
         """
@@ -57,16 +62,6 @@ class CaptureThread(threading.Thread):
         sniff(filter="port 67", timeout=self.pkttimeout, 
                 count=self.pktcount, prn=self.data_callback, store=0)
 
-    def get_results(self):
-        """
-        Return results
-        """
-        return self.data
-
-# should maintain a list of objects, that have information on returned results
-# all returned packets should be turned into objects
-# each object should contain a good / bad flag
-# sha hash to remove duplicate objects
 
 class DHCPResponse(object):
     """
@@ -105,6 +100,7 @@ Options:
     -v, --verbose               Enable verbose logging
 
     -c, --config-file=          Configuration file to use
+    -i, --interface=            Change the network interface, overriding the configuration file.
 """
 
     return usage
@@ -124,6 +120,7 @@ def parse_cmd_line(argv):
                     "verbose",
                     "help",
                     "config-file",
+                    "interface",
                     )
     try:
         opts, extra_opts = getopt.getopt(argv[1:], short_args, long_args)
@@ -133,17 +130,21 @@ def parse_cmd_line(argv):
         sys.exit(253)
 
     cmd_line_option_list = {}
+    cmd_line_option_list['VERBOSE'] = False
+    cmd_line_option_list['DEBUG'] = False
 
     for opt, val in opts:
         if (opt in ("-h", "--help")):
             print usage()
             sys.exit(0)
         elif (opt in ("-d", "--debug")):
-            cmd_line_option_list["DEBUG"] = "true"
+            cmd_line_option_list["DEBUG"] = True
         elif (opt in ("-v", "--verbose")):
-            cmd_line_option_list["VERBOSE"] = "true"
+            cmd_line_option_list["VERBOSE"] = True
         elif (opt in ("-c", "--config-file")):
             cmd_line_option_list["CONFIGFILE"] = val
+        elif (opt in ("-i", "--interface")):
+            cmd_line_option_list["INTERFACE"] = val
 
     return cmd_line_option_list
 
@@ -193,7 +194,7 @@ def make_dhcp_request(pktface):
     """
     Send a DHCP request on the network
 
-    @pktface: The network interface to use, "eth0".
+    @pktface: The network interface to use, eth0 for example.
     """
 
     conf.checkIPaddr = False
@@ -206,8 +207,13 @@ def make_dhcp_request(pktface):
 
 def dhcp_callback(pkt):
     """
-    Check the DHCP response
+    Handle the DHCP response from the CaptureThread.
+
+    Creates DHCPResponse objects and appends them to the 
+    DHCP_REPLIES list.
     """
+
+    LOG.debug("Got a DHCP Response")
 
     try:
         if pkt[DHCP]:
@@ -217,6 +223,8 @@ def dhcp_callback(pkt):
                     break
                 elif opt == 'pad':
                     break
+
+                LOG.debug("Setting option: %s : %s" % (opt[0], opt[1]))
                 dhcpresponse.setOpt(opt[0],opt[1])
 
             if (dhcpresponse.getOpt("message-type") == 2):
@@ -226,8 +234,14 @@ def dhcp_callback(pkt):
 
 def main():
 
+    global LOG
+
     options = parse_cmd_line(sys.argv)
     MCONFIG = config_load(options=options)
+
+    if options.has_key("INTERFACE"):
+        MCONFIG.set("PKTOPTS", "pktface", options['INTERFACE'])
+
     LOG = log_setup(options['VERBOSE'], options['DEBUG'])
 
     LOG.info("DHCPSnoop started")
@@ -237,11 +251,14 @@ def main():
         MCONFIG.get("PKTOPTS","pktcount"))
     pktcap.start()
 
+    wait_time = 3
+    LOG.debug("Waiting %s seconds for capture thread to initialize" % (wait_time))
+    time.sleep(wait_time)
+
     LOG.debug("Making dhcp requests")
     make_dhcp_request(MCONFIG.get("PKTOPTS","pktface"))
 
     pktcap.join()
-
 
 
     for rply in DHCP_REPLIES:
@@ -249,23 +266,28 @@ def main():
             if (not MCONFIG.has_section("server%s"%(i))):
                 break
 
-            total_count = len(MCONFIG.options("server%s"%(i)))
-            check_count = 0
-            for k,v in MCONFIG.items("server%s"%(i)):
+            LOG.debug("Checking server: %s" % (i))
+            #Gets the total number of attributes specified on the 
+            #configured server in the config file. 
+            total_checks = len(MCONFIG.options("server%s" % (i)))
+            checks_completed = 0
+
+            for k,v in MCONFIG.items("server%s" % (i)):
                 if (rply.getOpt(k) is not None):
                     if (rply.getOpt(k) == v):
-                        check_count+=1
+                        checks_completed+=1
                     else:
                         rply.setOpt(k,"%s <--- BAD !!! Wanted '%s'"%(
                                 rply.getOpt(k),v))
-            if (total_count == check_count):
+            if (total_checks == checks_completed):
                 rply.setIsGood()
 
     for rply in DHCP_REPLIES:
         if (rply.getIsGood() == False):
-            print "Found bad DHCP response\n"
+            LOG.critical("Found bad DHCP response")
             for opt in rply.dumpOpts():
-                print "\t%s : %s"%(opt, rply.getOpt(opt))
+                LOG.critical("\t%s : %s" % (opt, rply.getOpt(opt)) )
+
 
 if (__name__ == '__main__'):
     result = main()
