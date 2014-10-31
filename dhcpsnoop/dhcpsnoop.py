@@ -115,7 +115,7 @@ def parse_cmd_line(argv):
     config: Global Config object to update with the configuration
     """
 
-    short_args = "dvhc:"
+    short_args = "dvhc:i:"
     long_args = ("debug",
                     "verbose",
                     "help",
