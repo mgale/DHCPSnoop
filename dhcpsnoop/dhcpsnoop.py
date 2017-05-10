@@ -203,7 +203,7 @@ def make_dhcp_request(pktface):
         IP(src="0.0.0.0",dst="255.255.255.255")/
         UDP(sport=68,dport=67)/
         BOOTP(chaddr=hw)/
-        DHCP(options=[("message-type","discover")]),count=3, iface=pktface)
+        DHCP(options=[("message-type","discover"), "end"]),count=3, iface=pktface)
 
 def dhcp_callback(pkt):
     """
