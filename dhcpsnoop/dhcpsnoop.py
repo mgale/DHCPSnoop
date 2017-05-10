@@ -31,8 +31,8 @@ import time
 
 SCRIPT_NAME = os.path.basename(__file__)
 
-version = "1.0git"
-version_info = (1,0,0)
+version = "1.1git"
+version_info = (1,1,0)
 
 # Global main configuration object
 MCONFIG = None
@@ -59,7 +59,7 @@ class CaptureThread(threading.Thread):
         Capture DHCP packets on the network
         """
 
-        sniff(filter="port 67", timeout=self.pkttimeout, 
+        sniff(filter="port 67 and not host 0.0.0.0", timeout=self.pkttimeout, 
                 count=self.pktcount, prn=self.data_callback, store=0)
 
 
