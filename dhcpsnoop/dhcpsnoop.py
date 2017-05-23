@@ -21,7 +21,6 @@
 
 import os
 import sys
-import errno
 import ConfigParser
 import getopt
 from scapy.all import *
