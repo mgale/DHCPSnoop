@@ -21,7 +21,6 @@
 
 import os
 import sys
-import errno
 import ConfigParser
 import getopt
 from scapy.all import *
@@ -235,6 +234,7 @@ def dhcp_callback(pkt):
 def main():
 
     global LOG
+    exit_code = 0
 
     options = parse_cmd_line(sys.argv)
     MCONFIG = config_load(options=options)
@@ -283,9 +283,12 @@ def main():
 
     for rply in DHCP_REPLIES:
         if rply.getIsGood() == False:
+            exit_code += 1
+
             LOG.critical("Found bad DHCP response")
             for opt in rply.dumpOpts():
                 LOG.critical("\t%s : %s" % (opt, rply.getOpt(opt)) )
+    return exit_code
 
 
 if (__name__ == '__main__'):
