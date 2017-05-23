@@ -262,28 +262,27 @@ def main():
 
 
     for rply in DHCP_REPLIES:
-        for i in range(1,10):
-            if (not MCONFIG.has_section("server%s"%(i))):
-                break
+        for server in [section for section in MCONFIG.sections()
+                       if section.startswith('server')]:
 
-            LOG.debug("Checking server: %s" % (i))
+            LOG.debug("Checking server: %s" % server)
             #Gets the total number of attributes specified on the 
             #configured server in the config file. 
-            total_checks = len(MCONFIG.options("server%s" % (i)))
+            total_checks = len(MCONFIG.options(server))
             checks_completed = 0
 
-            for k,v in MCONFIG.items("server%s" % (i)):
-                if (rply.getOpt(k) is not None):
-                    if (rply.getOpt(k) == v):
+            for k,v in MCONFIG.items(server):
+                if rply.getOpt(k) is not None:
+                    if rply.getOpt(k) == v:
                         checks_completed+=1
                     else:
                         rply.setOpt(k,"%s <--- BAD !!! Wanted '%s'"%(
                                 rply.getOpt(k),v))
-            if (total_checks == checks_completed):
+            if total_checks == checks_completed:
                 rply.setIsGood()
 
     for rply in DHCP_REPLIES:
-        if (rply.getIsGood() == False):
+        if rply.getIsGood() == False:
             LOG.critical("Found bad DHCP response")
             for opt in rply.dumpOpts():
                 LOG.critical("\t%s : %s" % (opt, rply.getOpt(opt)) )
