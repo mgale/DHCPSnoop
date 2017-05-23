@@ -284,7 +284,6 @@ def main():
     for rply in DHCP_REPLIES:
         if rply.getIsGood() == False:
             exit_code += 1
-
             LOG.critical("Found bad DHCP response")
             for opt in rply.dumpOpts():
                 LOG.critical("\t%s : %s" % (opt, rply.getOpt(opt)) )
