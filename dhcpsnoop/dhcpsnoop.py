@@ -291,6 +291,8 @@ def main():
                             k, "\t!!! %s Wanted '%s'" % (server, v))
             if total_checks == checks_completed:
                 rply.setIsGood()
+                LOG.debug("Configuration Matched: %s" % server)
+                break
 
     for rply in DHCP_REPLIES:
         if rply.getIsGood() is False:
