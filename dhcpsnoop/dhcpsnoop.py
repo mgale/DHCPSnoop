@@ -30,8 +30,8 @@ import time
 
 SCRIPT_NAME = os.path.basename(__file__)
 
-version = "1.1git"
-version_info = (1,1,0)
+version = "1.2git"
+version_info = (1, 2, 0)
 
 # Global main configuration object
 MCONFIG = None
@@ -69,6 +69,7 @@ class DHCPResponse(object):
 
     def __init__(self):
         self.opts = {}
+        self.opt_error = {}
         self.isgood = False
 
     def setIsGood(self):
@@ -81,11 +82,22 @@ class DHCPResponse(object):
         self.opts[opt] = value
 
     def getOpt(self, opt):
-        if (self.opts.has_key(opt)):
+        if opt in self.opts:
             return self.opts[opt]
 
     def dumpOpts(self):
         return self.opts.keys()
+
+    def setOptError(self, opt, error):
+        if opt not in self.opt_error:
+            self.opt_error[opt] = list()
+        self.opt_error[opt].append(error)
+
+    def getOptErrors(self, opt):
+        if opt in self.opt_error:
+            return self.opt_error[opt]
+        else:
+            return list()
 
 
 # usage method
@@ -260,37 +272,43 @@ def main():
 
     pktcap.join()
 
-
     for rply in DHCP_REPLIES:
         for server in [section for section in MCONFIG.sections()
                        if section.startswith('server')]:
 
             LOG.debug("Checking server: %s" % server)
-            #Gets the total number of attributes specified on the 
-            #configured server in the config file. 
+            # Gets the total number of attributes specified on the
+            # configured server in the config file.
             total_checks = len(MCONFIG.options(server))
             checks_completed = 0
 
-            for k,v in MCONFIG.items(server):
+            for k, v in MCONFIG.items(server):
                 if rply.getOpt(k) is not None:
                     if rply.getOpt(k) == v:
-                        checks_completed+=1
+                        checks_completed += 1
                     else:
-                        rply.setOpt(k,"%s <--- BAD !!! Wanted '%s'"%(
-                                rply.getOpt(k),v))
+                        rply.setOptError(
+                            k, "\t!!! %s Wanted '%s'" % (server, v))
             if total_checks == checks_completed:
                 rply.setIsGood()
 
     for rply in DHCP_REPLIES:
-        if rply.getIsGood() == False:
+        if rply.getIsGood() is False:
             exit_code += 1
             LOG.critical("Found bad DHCP response")
             for opt in rply.dumpOpts():
-                LOG.critical("\t%s : %s" % (opt, rply.getOpt(opt)) )
+                error_msgs = rply.getOptErrors(opt)
+                if len(error_msgs) > 0:
+                    LOG.critical("\t%s : %s <--- BAD" % (opt,
+                                                         rply.getOpt(opt)))
+                    for error_msg in error_msgs:
+                        LOG.critical(error_msg)
+                else:
+                    LOG.critical("\t%s : %s" % (opt, rply.getOpt(opt)))
+
     return exit_code
 
 
-if (__name__ == '__main__'):
+if __name__ == '__main__':
     result = main()
     sys.exit(result)
-
