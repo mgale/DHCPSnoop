@@ -30,8 +30,8 @@ import time
 
 SCRIPT_NAME = os.path.basename(__file__)
 
-version = "1.2git"
-version_info = (1, 2, 0)
+version = "1.3git"
+version_info = (1, 3, 0)
 
 # Global main configuration object
 MCONFIG = None
@@ -71,6 +71,7 @@ class DHCPResponse(object):
         self.opts = {}
         self.opt_error = {}
         self.isgood = False
+        self.src_mac = None
 
     def setIsGood(self):
         self.isgood = True
@@ -98,6 +99,12 @@ class DHCPResponse(object):
             return self.opt_error[opt]
         else:
             return list()
+
+    def setSrcMac(self, mac):
+        self.src_mac = mac
+
+    def getSrcMac(self):
+        return self.src_mac
 
 
 # usage method
@@ -228,7 +235,11 @@ def dhcp_callback(pkt):
 
     try:
         if pkt[DHCP]:
-            dhcpresponse = DHCPResponse() 
+            dhcpresponse = DHCPResponse()
+
+            LOG.debug("Setting packet src mac : %s" % pkt[Ether].src)
+            dhcpresponse.setSrcMac(pkt[Ether].src)
+
             for opt in pkt[DHCP].options:
                 if opt == 'end':
                     break
@@ -297,7 +308,7 @@ def main():
     for rply in DHCP_REPLIES:
         if rply.getIsGood() is False:
             exit_code += 1
-            LOG.critical("Found bad DHCP response")
+            LOG.critical("Found bad DHCP response from %s" % rply.getSrcMac())
             for opt in rply.dumpOpts():
                 error_msgs = rply.getOptErrors(opt)
                 if len(error_msgs) > 0:
