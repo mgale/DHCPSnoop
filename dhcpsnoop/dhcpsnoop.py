@@ -30,8 +30,8 @@ import time
 
 SCRIPT_NAME = os.path.basename(__file__)
 
-version = "1.3git"
-version_info = (1, 3, 0)
+version = "1.4git"
+version_info = (1, 4, 0)
 
 # Global main configuration object
 MCONFIG = None
@@ -47,19 +47,24 @@ class CaptureThread(threading.Thread):
     Thread to sniff the network packets, sniff is a
     blocking call.
     """
-    def __init__(self, data_callback, pktcount=5, pkttimeout=5):
+    def __init__(self, data_callback, pktcount=5, pkttimeout=5, iface=None):
         threading.Thread.__init__(self)
         self.pktcount = int(pktcount)
         self.pkttimeout = int(pkttimeout)
         self.data_callback = data_callback
+        self.iface = iface
 
     def run(self):
         """
         Capture DHCP packets on the network
         """
-
-        sniff(filter="port 67 and not host 0.0.0.0", timeout=self.pkttimeout, 
-                count=self.pktcount, prn=self.data_callback, store=0)
+        LOG.debug("Sniffing on interface %s" % self.iface)
+        sniff(count=self.pktcount,
+              filter="port 67 and not host 0.0.0.0",
+              iface=self.iface,
+              prn=self.data_callback,
+              store=0,
+              timeout=self.pkttimeout)
 
 
 class DHCPResponse(object):
@@ -214,7 +219,7 @@ def make_dhcp_request(pktface):
 
     @pktface: The network interface to use, eth0 for example.
     """
-
+    LOG.debug("Making requests on %s" % pktface)
     conf.checkIPaddr = False
     fam,hw = get_if_raw_hwaddr(conf.iface)
     sendp(Ether(dst="ff:ff:ff:ff:ff:ff")/
@@ -268,10 +273,11 @@ def main():
     LOG = log_setup(options['VERBOSE'], options['DEBUG'])
 
     LOG.info("DHCPSnoop started")
-    
     LOG.debug("Starting capture thread")
-    pktcap = CaptureThread(dhcp_callback, MCONFIG.get("PKTOPTS","pkttime"),
-        MCONFIG.get("PKTOPTS","pktcount"))
+    pktcap = CaptureThread(data_callback=dhcp_callback,
+                           pkttimeout=MCONFIG.get("PKTOPTS", "pkttime"),
+                           pktcount=MCONFIG.get("PKTOPTS", "pktcount"),
+                           iface=MCONFIG.get("PKTOPTS", "pktface"))
     pktcap.start()
 
     wait_time = 3
